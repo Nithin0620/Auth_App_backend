@@ -1,8 +1,7 @@
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const user = require("../models/Auth");
-
 
 exports.signup = async(req,res)=>{
    try{
@@ -19,10 +18,6 @@ exports.signup = async(req,res)=>{
       let hassedPassword ;
       try{
          hassedPassword = await bcrypt.hash(password,10);
-         // res.status(200).json({
-         //    success:true,
-         //    message:"password hashed"
-         // })
       }
       catch(e){
          return res.status(500).json({
@@ -50,7 +45,6 @@ exports.signup = async(req,res)=>{
    }
 }
 
-
 exports.login = async(req,res)=>{
    try{
       const {email,password} = req.body;
@@ -61,28 +55,30 @@ exports.login = async(req,res)=>{
          })
       }
 
-      let user = user.findone({email});
-      if(!user){
-         res.status(500).json({
+      const foundUser = await user.findOne({email});
+
+      if(!foundUser){
+         return res.status(500).json({
             success:false,
-            message:"user not registerd"
+            message:"user not registered"
          })
       }
 
       const payload= {
-         email:user.email,
-         id:user._id,
-         role:user.role
+         email:foundUser.email,
+         id:foundUser._id,
+         role:foundUser.role
       }
 
-      if(await bcrypt.compare(password,user.password)){
-         let token = jwt.sign(payload,process.env.SECRATE,{
-                        expiredIn:"2h",
+      if(await bcrypt.compare(password,foundUser.password)){
+
+         let token = jwt.sign(payload,process.env.SECRET,{
+                        expiresIn:"2h",
                      });
 
-         user = user.toObject();
-         user.token = token;
-         user.password = undefined;
+         const userObject = foundUser.toObject();
+         userObject.token = token;
+         userObject.password = undefined;
 
          const options = {
             expires : new Date(Date.now()+3*24*60*1000),
@@ -92,13 +88,12 @@ exports.login = async(req,res)=>{
          res.cookie("nithincokkie",token,options).status(200).json({
             success:true,
             token,
-            user,
-            message:"User loggedIN Successfully"
+            user: userObject,
+            message:"User logged in Successfully"
          })
       }
-
-
       else{
+         console.log("Password incorrect");
          return res.status(500).json({
             success:false,
             message:"password Incorrect"
@@ -106,10 +101,10 @@ exports.login = async(req,res)=>{
       }
    }
    catch(e){
-      console.log(e);
+      console.log("Error during login:", e);
       res.status(500).json({
-         success:true,
-         message:"login failiure"
+         success:false,
+         message:"login failure"
       })
    }
 }
